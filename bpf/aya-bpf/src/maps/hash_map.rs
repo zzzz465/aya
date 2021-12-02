@@ -7,7 +7,9 @@ use aya_bpf_cty::{c_long, c_void};
 
 use crate::{
     bindings::{bpf_map_def, bpf_map_type::BPF_MAP_TYPE_HASH},
-    helpers::{bpf_map_delete_elem, bpf_map_lookup_elem, bpf_map_update_elem},
+    helpers::{
+        bpf_for_each_map_elem, bpf_map_delete_elem, bpf_map_lookup_elem, bpf_map_update_elem,
+    },
     maps::PinningType,
 };
 
@@ -48,6 +50,16 @@ impl<K, V> HashMap<K, V> {
     #[inline]
     pub fn remove(&mut self, key: &K) -> Result<(), c_long> {
         remove(&mut self.def, key)
+    }
+
+    #[inline]
+    pub unsafe fn for_each(
+        &mut self,
+        callback_fn: unsafe extern "C" fn(bpf_map_def, &K, &V, *mut c_void) -> u64,
+        callback_ctx: *mut c_void,
+        flags: u64,
+    ) -> Result<(), c_long> {
+        for_each(&mut self.def, callback_fn, callback_ctx, flags)
     }
 }
 
@@ -93,6 +105,16 @@ impl<K, V> LruHashMap<K, V> {
     #[inline]
     pub fn remove(&mut self, key: &K) -> Result<(), c_long> {
         remove(&mut self.def, key)
+    }
+
+    #[inline]
+    pub unsafe fn for_each(
+        &mut self,
+        callback_fn: unsafe extern "C" fn(bpf_map_def, &K, &V, *mut c_void) -> u64,
+        callback_ctx: *mut c_void,
+        flags: u64,
+    ) -> Result<(), c_long> {
+        for_each(&mut self.def, callback_fn, callback_ctx, flags)
     }
 }
 
@@ -194,6 +216,16 @@ impl<K, V> LruPerCpuHashMap<K, V> {
     pub fn remove(&mut self, key: &K) -> Result<(), c_long> {
         remove(&mut self.def, key)
     }
+
+    #[inline]
+    pub unsafe fn for_each(
+        &mut self,
+        callback_fn: unsafe extern "C" fn(bpf_map_def, &K, &V, *mut c_void) -> u64,
+        callback_ctx: *mut c_void,
+        flags: u64,
+    ) -> Result<(), c_long> {
+        for_each(&mut self.def, callback_fn, callback_ctx, flags)
+    }
 }
 
 const fn build_def<K, V>(ty: u32, max_entries: u32, flags: u32, pin: PinningType) -> bpf_map_def {
@@ -235,4 +267,24 @@ fn remove<K>(def: &mut bpf_map_def, key: &K) -> Result<(), c_long> {
     let ret =
         unsafe { bpf_map_delete_elem(def as *mut _ as *mut _, key as *const _ as *const c_void) };
     (ret >= 0).then(|| ()).ok_or(ret)
+}
+
+#[inline]
+unsafe fn for_each<K, V>(
+    def: &mut bpf_map_def,
+    callback_fn: unsafe extern "C" fn(bpf_map_def, &K, &V, *mut c_void) -> u64,
+    callback_ctx: *mut c_void,
+    flags: u64,
+) -> Result<(), c_long> {
+    let value = bpf_for_each_map_elem(
+        def as *mut _ as *mut _,
+        callback_fn as *mut c_void,
+        callback_ctx,
+        flags,
+    );
+    if value < 0 {
+        Err(value)
+    } else {
+        Ok(())
+    }
 }
