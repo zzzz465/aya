@@ -1,13 +1,10 @@
 //! LSM probes.
-use std::os::unix::io::RawFd;
-
 use thiserror::Error;
 
 use crate::{
     generated::{bpf_attach_type::BPF_LSM_MAC, bpf_prog_type::BPF_PROG_TYPE_LSM},
     obj::btf::{Btf, BtfError, BtfKind},
-    programs::{load_program, FdLink, LinkRef, ProgramData, ProgramError},
-    sys::bpf_raw_tracepoint_open,
+    programs::{load_program, utils::attach_btf_id, LinkRef, ProgramData, ProgramError},
 };
 
 /// A program that attaches to Linux LSM hooks. Used to implement security policy and
@@ -85,22 +82,6 @@ impl Lsm {
 
     /// Attaches the program.
     pub fn attach(&mut self) -> Result<LinkRef, ProgramError> {
-        attach_btf_id(&mut self.data)
+        attach_btf_id(&mut self.data, None)
     }
-}
-
-/// Common logic for all BPF program types that attach to a BTF id.
-pub(crate) fn attach_btf_id(program_data: &mut ProgramData) -> Result<LinkRef, ProgramError> {
-    let prog_fd = program_data.fd_or_err()?;
-
-    // Attaching LSM programs doesn't require providing attach name. LSM
-    // programs are attached to LSM hook which is specified in the program.
-    let pfd = bpf_raw_tracepoint_open(None, prog_fd).map_err(|(_code, io_error)| {
-        ProgramError::SyscallError {
-            call: "bpf_raw_tracepoint_open".to_owned(),
-            io_error,
-        }
-    })? as RawFd;
-
-    Ok(program_data.link(FdLink { fd: Some(pfd) }))
 }

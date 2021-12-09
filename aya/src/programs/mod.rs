@@ -37,6 +37,8 @@
 //! [`Bpf::program_mut`]: crate::Bpf::program_mut
 //! [`maps`]: crate::maps
 mod cgroup_skb;
+mod fentry;
+mod fexit;
 mod kprobe;
 mod lirc_mode2;
 mod lsm;
@@ -52,6 +54,7 @@ pub mod tc;
 mod tp_btf;
 mod trace_point;
 mod uprobe;
+mod utils;
 mod xdp;
 
 use libc::{close, dup, ENOSPC};
@@ -68,6 +71,8 @@ use std::{
 use thiserror::Error;
 
 pub use cgroup_skb::{CgroupSkb, CgroupSkbAttachType};
+pub use fentry::{FEntry, FEntryLoadError};
+pub use fexit::{FExit, FExitLoadError};
 pub use kprobe::{KProbe, KProbeError};
 pub use lirc_mode2::LircMode2;
 pub use lsm::{Lsm, LsmLoadError};
@@ -197,6 +202,8 @@ pub enum Program {
     RawTracePoint(RawTracePoint),
     Lsm(Lsm),
     BtfTracePoint(BtfTracePoint),
+    FEntry(FEntry),
+    FExit(FExit),
 }
 
 impl Program {
@@ -233,6 +240,8 @@ impl Program {
             Program::RawTracePoint(_) => BPF_PROG_TYPE_RAW_TRACEPOINT,
             Program::Lsm(_) => BPF_PROG_TYPE_LSM,
             Program::BtfTracePoint(_) => BPF_PROG_TYPE_TRACING,
+            Program::FEntry(_) => BPF_PROG_TYPE_TRACING,
+            Program::FExit(_) => BPF_PROG_TYPE_TRACING,
         }
     }
 
@@ -258,6 +267,8 @@ impl Program {
             Program::RawTracePoint(p) => &p.data,
             Program::Lsm(p) => &p.data,
             Program::BtfTracePoint(p) => &p.data,
+            Program::FEntry(p) => &p.data,
+            Program::FExit(p) => &p.data,
         }
     }
 
@@ -278,6 +289,8 @@ impl Program {
             Program::RawTracePoint(p) => &mut p.data,
             Program::Lsm(p) => &mut p.data,
             Program::BtfTracePoint(p) => &mut p.data,
+            Program::FEntry(p) => &mut p.data,
+            Program::FExit(p) => &mut p.data,
         }
     }
 }
@@ -605,6 +618,8 @@ impl_program_fd!(
     Lsm,
     RawTracePoint,
     BtfTracePoint,
+    FEntry,
+    FExit,
 );
 
 macro_rules! impl_try_from_program {
@@ -651,6 +666,8 @@ impl_try_from_program!(
     Lsm,
     RawTracePoint,
     BtfTracePoint,
+    FEntry,
+    FExit,
 );
 
 /// Provides information about a loaded program, like name, id and statistics
