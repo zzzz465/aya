@@ -144,6 +144,7 @@ pub enum MapError {
 pub struct Map {
     pub(crate) obj: obj::Map,
     pub(crate) fd: Option<RawFd>,
+    pub(crate) btf_fd: Option<RawFd>,
     pub pinned: bool,
 }
 
@@ -155,13 +156,14 @@ impl Map {
 
         let c_name = CString::new(name).map_err(|_| MapError::InvalidName { name: name.into() })?;
 
-        let fd = bpf_create_map(&c_name, &self.obj.def).map_err(|(code, io_error)| {
-            MapError::CreateError {
-                name: name.into(),
-                code,
-                io_error,
-            }
-        })? as RawFd;
+        let fd =
+            bpf_create_map(&c_name, &self.obj.def, self.btf_fd).map_err(|(code, io_error)| {
+                MapError::CreateError {
+                    name: name.into(),
+                    code,
+                    io_error,
+                }
+            })? as RawFd;
 
         self.fd = Some(fd);
 
@@ -503,6 +505,7 @@ mod tests {
             obj: new_obj_map(),
             fd: None,
             pinned: false,
+            btf_fd: None,
         }
     }
 

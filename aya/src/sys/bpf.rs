@@ -28,7 +28,7 @@ use crate::{
 
 use super::{syscall, Syscall};
 
-pub(crate) fn bpf_create_map(name: &CStr, def: &bpf_map_def) -> SysResult {
+pub(crate) fn bpf_create_map(name: &CStr, def: &bpf_map_def, btf_fd: Option<RawFd>) -> SysResult {
     let mut attr = unsafe { mem::zeroed::<bpf_attr>() };
 
     let u = unsafe { &mut attr.__bindgen_anon_1 };
@@ -37,7 +37,15 @@ pub(crate) fn bpf_create_map(name: &CStr, def: &bpf_map_def) -> SysResult {
     u.value_size = def.value_size;
     u.max_entries = def.max_entries;
     u.map_flags = def.map_flags;
-
+    if let Some(btf_key_type_id) = def.btf_key_type_id {
+        u.btf_key_type_id = btf_key_type_id;
+    }
+    if let Some(btf_value_type_id) = def.btf_value_type_id {
+        u.btf_value_type_id = btf_value_type_id;
+    }
+    if let Some(btf_fd) = btf_fd {
+        u.btf_fd = btf_fd as u32;
+    }
     // https://github.com/torvalds/linux/commit/ad5b177bd73f5107d97c36f56395c4281fb6f089
     // The map name was added as a parameter in kernel 4.15+ so we skip adding it on
     // older kernels for compatibility

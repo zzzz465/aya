@@ -67,8 +67,8 @@ pub(crate) struct bpf_map_def {
     // optional features
     pub(crate) id: u32,
     pub(crate) pinning: PinningType,
-    pub(crate) btf_key_type_id: u32,
-    pub(crate) btf_value_type_id: u32,
+    pub(crate) btf_key_type_id: Option<u32>,
+    pub(crate) btf_value_type_id: Option<u32>,
 }
 
 #[repr(u32)]
@@ -367,6 +367,7 @@ impl<'a> BpfLoader<'a> {
                 obj,
                 fd: None,
                 pinned: false,
+                btf_fd,
             };
             let fd = match map.obj.def.pinning {
                 PinningType::ByName => {

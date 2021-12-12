@@ -183,6 +183,7 @@ mod tests {
             obj: new_obj_map(),
             fd: None,
             pinned: false,
+            btf_fd: None,
         };
         assert!(matches!(
             HashMap::<_, u8, u32>::new(&map),
@@ -199,6 +200,7 @@ mod tests {
             obj: new_obj_map(),
             fd: None,
             pinned: false,
+            btf_fd: None,
         };
         assert!(matches!(
             HashMap::<_, u32, u16>::new(&map),
@@ -226,6 +228,7 @@ mod tests {
             },
             fd: None,
             pinned: false,
+            btf_fd: None,
         };
 
         assert!(matches!(
@@ -240,6 +243,7 @@ mod tests {
             obj: new_obj_map(),
             fd: None,
             pinned: false,
+            btf_fd: None,
         };
 
         assert!(matches!(
@@ -254,6 +258,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
 
         assert!(HashMap::<_, u32, u32>::new(&mut map).is_ok());
@@ -265,6 +270,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         assert!(HashMap::<_, u32, u32>::try_from(&map).is_ok())
     }
@@ -286,6 +292,7 @@ mod tests {
             },
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
 
         assert!(HashMap::<_, u32, u32>::try_from(&map).is_ok())
@@ -299,6 +306,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let mut hm = HashMap::<_, u32, u32>::new(&mut map).unwrap();
 
@@ -322,6 +330,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let mut hm = HashMap::<_, u32, u32>::new(&mut map).unwrap();
 
@@ -336,6 +345,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let mut hm = HashMap::<_, u32, u32>::new(&mut map).unwrap();
 
@@ -359,6 +369,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let mut hm = HashMap::<_, u32, u32>::new(&mut map).unwrap();
 
@@ -372,6 +383,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -394,6 +406,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -430,6 +443,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
         let keys = hm.keys().collect::<Result<Vec<_>, _>>();
@@ -474,6 +488,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -502,6 +517,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -532,6 +548,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
         let items = hm.iter().collect::<Result<Vec<_>, _>>().unwrap();
@@ -565,6 +582,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -599,6 +617,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 
@@ -639,6 +658,7 @@ mod tests {
             obj: new_obj_map(),
             fd: Some(42),
             pinned: false,
+            btf_fd: None,
         };
         let hm = HashMap::<_, u32, u32>::new(&map).unwrap();
 

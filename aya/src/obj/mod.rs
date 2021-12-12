@@ -891,7 +891,7 @@ fn parse_btf_map_def(btf: &Btf, info: &btf_var_secinfo) -> Result<(String, bpf_m
                     // Safety: union
                     let t = unsafe { pty.__bindgen_anon_1.type_ };
                     map_def.key_size = btf.type_size(t)? as u32;
-                    map_def.btf_key_type_id = t;
+                    map_def.btf_key_type_id = Some(t);
                 } else {
                     return Err(BtfError::UnexpectedBtfType { type_id: m.type_ });
                 }
@@ -904,7 +904,7 @@ fn parse_btf_map_def(btf: &Btf, info: &btf_var_secinfo) -> Result<(String, bpf_m
                     // Safety: union
                     let t = unsafe { pty.__bindgen_anon_1.type_ };
                     map_def.value_size = btf.type_size(t)? as u32;
-                    map_def.btf_value_type_id = t;
+                    map_def.btf_value_type_id = Some(t);
                 } else {
                     return Err(BtfError::UnexpectedBtfType { type_id: m.type_ });
                 }
@@ -1143,8 +1143,8 @@ mod tests {
                     map_flags: 5,
                     id: 0,
                     pinning: PinningType::None,
-                    btf_key_type_id: 0,
-                    btf_value_type_id: 0,
+                    btf_key_type_id: None,
+                    btf_value_type_id: None,
                 },
                 data,
                 ..
@@ -1174,8 +1174,8 @@ mod tests {
                     map_flags: 0,
                     id: 0,
                     pinning: PinningType::None,
-                    btf_key_type_id: 0,
-                    btf_value_type_id: 0,
+                    btf_key_type_id: None,
+                    btf_value_type_id: None,
                 },
                 data,
                 kind
