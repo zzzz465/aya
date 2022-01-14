@@ -4,6 +4,7 @@ use std::{
     mem, ptr,
 };
 
+use log::debug;
 use object::Endianness;
 
 use crate::{
@@ -36,6 +37,30 @@ pub(crate) enum BtfType {
     FuncProto(btf_type, Vec<btf_param>),
     Var(btf_type, btf_var),
     DataSec(btf_type, Vec<btf_var_secinfo>),
+}
+
+impl Display for BtfType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BtfType::Fwd(_) => write!(f, "[FWD]"),
+            BtfType::Const(_) => write!(f, "[CONST]"),
+            BtfType::Volatile(_) => write!(f, "[VOLATILE]"),
+            BtfType::Restrict(_) => write!(f, "[RESTRICT]"),
+            BtfType::Ptr(_) => write!(f, "[PTR]"),
+            BtfType::Typedef(_) => write!(f, "[TYPEDEF]"),
+            BtfType::Func(_) => write!(f, "[FUNC]"),
+            BtfType::Int(_, _) => write!(f, "[INT]"),
+            BtfType::Float(_) => write!(f, "[FLOAT]"),
+            BtfType::Enum(_, _) => write!(f, "[ENUM]"),
+            BtfType::Array(_, _) => write!(f, "[ARRAY]"),
+            BtfType::Struct(_, _) => write!(f, "[STRUCT]"),
+            BtfType::Union(_, _) => write!(f, "[UNION]"),
+            BtfType::FuncProto(_, _) => write!(f, "[FUNC_PROTO]"),
+            BtfType::Var(_, _) => write!(f, "[VAR]"),
+            BtfType::DataSec(_, _) => write!(f, "[DATA_SEC]"),
+            BtfType::Unknown => write!(f, "[UNKNOWN]"),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -524,6 +549,7 @@ pub(crate) fn fields_are_compatible(
             return Ok(false);
         }
 
+        debug!("checking local_ty {:?}", local_ty);
         use BtfType::*;
         match local_ty {
             Fwd(_) | Enum(_, _) => {
@@ -552,7 +578,10 @@ pub(crate) fn fields_are_compatible(
                     continue;
                 }
             }
-            _ => panic!("this shouldn't be reached"),
+            _ => panic!(
+                "this shouldn't be reached, type {:?} not supported",
+                local_ty
+            ),
         }
     }
 

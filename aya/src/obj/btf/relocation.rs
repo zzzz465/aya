@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use log::debug;
 use thiserror::Error;
 
 use crate::{
@@ -491,6 +492,7 @@ fn match_member<'local, 'target>(
                 return Ok(ret);
             }
         } else if local_name == target_name {
+            debug!("local_name: {}, target_name: {}", local_name, target_name);
             if fields_are_compatible(
                 local_spec.btf,
                 local_member.type_,
