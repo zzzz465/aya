@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use libc::ENOSPC;
 use log::debug;
 use thiserror::Error;
 
@@ -325,22 +326,8 @@ impl<'a> BpfLoader<'a> {
 
                 // load btf to the kernel
                 let raw_btf = btf.to_bytes();
-                let mut log_buf = VerifierLog::new();
-                log_buf.grow();
-                let ret = bpf_load_btf(raw_btf.as_slice(), &mut log_buf);
-                match ret {
-                    Ok(fd) => Some(fd),
-                    Err(io_error) => {
-                        log_buf.truncate();
-                        return Err(BpfError::BtfError(BtfError::LoadError {
-                            io_error,
-                            verifier_log: log_buf
-                                .as_c_str()
-                                .map(|s| s.to_string_lossy().to_string())
-                                .unwrap_or_else(|| "[none]".to_owned()),
-                        }));
-                    }
-                }
+                let fd = load_btf(raw_btf)?;
+                Some(fd)
             } else {
                 None
             }
@@ -763,4 +750,52 @@ pub enum BpfError {
 
     #[error("program error")]
     ProgramError(#[from] ProgramError),
+}
+
+fn load_btf(raw_btf: Vec<u8>) -> Result<RawFd, BtfError> {
+    let mut log_buf = VerifierLog::new();
+    let mut retries = 0;
+    let ret = bpf_load_btf(raw_btf.as_slice(), &mut log_buf);
+    if let Ok(fd) = ret {
+        Ok(fd)
+    } else {
+        retries += 1;
+        log_buf.grow();
+        loop {
+            let ret = bpf_load_btf(raw_btf.as_slice(), &mut log_buf);
+            match ret {
+                Err(io_error) if retries == 0 || io_error.raw_os_error() == Some(ENOSPC) => {
+                    if retries == 10 {
+                        break;
+                    }
+                    retries += 1;
+                    log_buf.grow();
+                }
+                Err(io_error) => {
+                    log_buf.truncate();
+                    return Err(BtfError::LoadError {
+                        io_error,
+                        verifier_log: log_buf
+                            .as_c_str()
+                            .map(|s| s.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "[none]".to_owned()),
+                    });
+                }
+                Ok(_) => break,
+            }
+        }
+        match ret {
+            Ok(fd) => Ok(fd),
+            Err(io_error) => {
+                log_buf.truncate();
+                Err(BtfError::LoadError {
+                    io_error,
+                    verifier_log: log_buf
+                        .as_c_str()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "[none]".to_owned()),
+                })
+            }
+        }
+    }
 }
