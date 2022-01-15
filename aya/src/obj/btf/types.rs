@@ -467,13 +467,10 @@ pub(crate) fn types_are_compatible(
                     continue;
                 }
             }
-            Array(l_ty, _) => {
-                if let Array(t_ty, _) = target_ty {
-                    // Safety: union
-                    unsafe {
-                        local_id = l_ty.__bindgen_anon_1.type_;
-                        target_id = t_ty.__bindgen_anon_1.type_;
-                    }
+            Array(_, l_ty) => {
+                if let Array(_, t_ty) = target_ty {
+                    local_id = l_ty.type_;
+                    target_id = t_ty.type_;
                     continue;
                 }
             }
@@ -515,6 +512,7 @@ pub(crate) fn fields_are_compatible(
     for _ in 0..MAX_RESOLVE_DEPTH {
         local_id = local_btf.resolve_type(local_id)?;
         target_id = target_btf.resolve_type(target_id)?;
+
         let local_ty = local_btf.type_by_id(local_id)?;
         let target_ty = target_btf.type_by_id(target_id)?;
 
@@ -546,13 +544,11 @@ pub(crate) fn fields_are_compatible(
             }
             Float(_) => return Ok(true),
             Ptr(_) => return Ok(true),
-            Array(l_ty, _) => {
-                if let Array(t_ty, _) = target_ty {
-                    // Safety: union
-                    unsafe {
-                        local_id = l_ty.__bindgen_anon_1.type_;
-                        target_id = t_ty.__bindgen_anon_1.type_;
-                    }
+            Array(_, l_ty) => {
+                if let Array(_, t_ty) = target_ty {
+                    local_id = l_ty.type_;
+                    target_id = t_ty.type_;
+
                     continue;
                 }
             }
