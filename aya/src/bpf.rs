@@ -309,11 +309,9 @@ impl<'a> BpfLoader<'a> {
                 // fixup btf
                 let section_data = obj.section_sizes.clone();
                 let symbol_offsets = obj.symbol_offset_by_name.clone();
-                obj_btf.fixup(&section_data, &symbol_offsets)?;
-                let btf = obj_btf.sanitize(&self.features)?;
-
+                obj_btf.fixup_and_sanitize(&section_data, &symbol_offsets, &self.features)?;
                 // load btf to the kernel
-                let raw_btf = btf.to_bytes();
+                let raw_btf = obj_btf.to_bytes();
                 let mut log_buf = VerifierLog::new();
                 log_buf.grow();
                 let ret = bpf_load_btf(raw_btf.as_slice(), &mut log_buf);
