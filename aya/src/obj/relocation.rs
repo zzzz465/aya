@@ -360,11 +360,10 @@ impl<'a> FunctionLinker<'a> {
         fun: &Function,
         start: usize,
     ) -> Result<(), RelocationError> {
-        let off_adj = start - (fun.section_offset as usize / INS_SIZE);
         let func_info = &fun.func_info.func_info;
         let func_info = func_info.iter().map(|f| {
             let mut new = *f;
-            new.insn_off = f.insn_off + off_adj as u32;
+            new.insn_off = start as u32 + f.insn_off;
             new
         });
         program.func_info.func_info.extend(func_info);
