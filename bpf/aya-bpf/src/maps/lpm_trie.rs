@@ -30,6 +30,7 @@ impl<K> Key<K> {
 }
 
 impl<K, V> LpmTrie<K, V> {
+    /// Creates an `LpmTrie` map with the maximum number of elements.
     pub const fn with_max_entries(max_entries: u32, flags: u32) -> LpmTrie<K, V> {
         LpmTrie {
             def: build_def::<K, V>(BPF_MAP_TYPE_LPM_TRIE, max_entries, flags, PinningType::None),
@@ -38,6 +39,8 @@ impl<K, V> LpmTrie<K, V> {
         }
     }
 
+    /// Creates an `LpmTrie` map pinned in the BPPFS filesystem, with the
+    /// maximum number of elements.
     pub const fn pinned(max_entries: u32, flags: u32) -> LpmTrie<K, V> {
         LpmTrie {
             def: build_def::<K, V>(
@@ -51,6 +54,7 @@ impl<K, V> LpmTrie<K, V> {
         }
     }
 
+    /// Returns a copy of the value associated with the key.
     #[inline]
     pub fn get(&mut self, key: &Key<K>) -> Option<&V> {
         unsafe {
@@ -63,6 +67,7 @@ impl<K, V> LpmTrie<K, V> {
         }
     }
 
+    /// Inserts a key-value pair into the map.
     #[inline]
     pub fn insert(&mut self, key: &Key<K>, value: &V, flags: u64) -> Result<(), c_long> {
         let ret = unsafe {
@@ -76,6 +81,7 @@ impl<K, V> LpmTrie<K, V> {
         (ret >= 0).then(|| ()).ok_or(ret)
     }
 
+    /// Removes a key from the map.
     #[inline]
     pub fn remove(&mut self, key: &Key<K>) -> Result<(), c_long> {
         let ret = unsafe {
