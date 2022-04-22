@@ -1,4 +1,4 @@
-use crate::{helpers::bpf_probe_read, BpfContext};
+use crate::{args::FromBtfArgument, helpers::bpf_probe_read, BpfContext};
 use core::ffi::c_void;
 
 pub struct TracePointContext {
@@ -12,6 +12,10 @@ impl TracePointContext {
 
     pub unsafe fn read_at<T>(&self, offset: usize) -> Result<T, i64> {
         bpf_probe_read(self.ctx.add(offset) as *const T)
+    }
+
+    pub unsafe fn arg<T: FromBtfArgument>(&self, n: usize) -> T {
+        T::from_argument(self.ctx as *const _, n)
     }
 }
 
