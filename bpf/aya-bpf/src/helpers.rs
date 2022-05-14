@@ -9,6 +9,7 @@
 
 use core::mem::{self, MaybeUninit};
 
+use aya_bpf_bindings::bindings::path;
 pub use aya_bpf_bindings::helpers as gen;
 pub use gen::*;
 
@@ -479,4 +480,51 @@ pub fn bpf_get_current_pid_tgid() -> u64 {
 #[inline]
 pub fn bpf_get_current_uid_gid() -> u64 {
     unsafe { gen::bpf_get_current_uid_gid() }
+}
+
+/// Write a full path for the given kernel BTF `path` object to the given
+/// buffer.
+///
+/// # Arguments
+///
+/// * `path`- mutable raw pointer to the kernel BTF `path` object
+/// * `buf`- buffer to write the path to
+///
+/// # Safety
+///
+/// This function is inherently unsafe, since it operates on mutable raw
+/// pointers.
+///
+/// # Examples
+///
+/// ```no_run
+/// use aya_bpf::{bindings::path, macros::map, maps::PerCpuArray};
+/// # use aya_bpf::{helpers::bpf_d_path, programs::LsmContext};
+///
+/// pub const PATH_LEN: usize = 512;
+///
+/// #[derive(Copy, Clone)]
+/// #[repr(C)]
+/// pub struct Path {
+///     pub path: [u8; PATH_LEN],
+/// }
+///
+/// #[map]
+/// pub static mut PATH_BUF: PerCpuArray<Path> = PerCpuArray::with_max_entries(1, 0);
+///
+/// # fn try_lsm(ctx: LsmContext) -> Result<i32, i32> {
+/// let my_path: *const path = unsafe { ctx.arg(0) };
+/// let buf = unsafe { PATH_BUF.get_mut(0).ok_or(0)? };
+/// unsafe { bpf_d_path(my_path as *mut path, &mut buf.path).map_err(|e| e as i32)? };
+/// # Ok(0)
+/// # }
+/// ```
+#[inline(always)]
+pub unsafe fn bpf_d_path(path: *mut path, buf: &mut [u8]) -> Result<usize, c_long> {
+    let ret = gen::bpf_d_path(path, buf.as_mut_ptr() as *mut c_char, buf.len() as u32);
+    if ret < 0 {
+        return Err(ret);
+    }
+
+    Ok(ret as usize)
 }
