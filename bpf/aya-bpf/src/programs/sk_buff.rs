@@ -1,4 +1,5 @@
 use core::{
+    cmp,
     ffi::c_void,
     mem::{self, MaybeUninit},
 };
@@ -62,6 +63,80 @@ impl SkBuffContext {
             } else {
                 Err(ret)
             }
+        }
+    }
+
+    /// Writes bytes from the SKB context to the given bytes slice.
+    ///
+    /// Reads at most `self.len() - offset` bytes from the SKB context.
+    ///
+    /// # Examples
+    ///
+    /// With a `PerCpuArray` (with size suitable for high jumbo frames MTU):
+    ///
+    /// ```no_run
+    /// use core::mem;
+    ///
+    /// use aya_bpf::{bindings::TC_ACT_PIPE, macros::map, maps::PerCpuArray, programs::SkBuffContext};
+    /// # #[allow(non_camel_case_types)]
+    /// # struct ethhdr {};
+    /// # #[allow(non_camel_case_types)]
+    /// # struct iphdr {};
+    /// # #[allow(non_camel_case_types)]
+    /// # struct tcphdr {};
+    ///
+    /// #[repr(C)]
+    /// pub struct Buf {
+    ///    pub buf: [u8; 9198],
+    /// }
+    ///
+    /// #[map]
+    /// pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+    ///
+    /// fn try_classifier(ctx: SkBuffContext) -> Result<i32, i32> {
+    ///     let buf = unsafe {
+    ///         let ptr = BUF.get_ptr_mut(0).ok_or(TC_ACT_PIPE)?;
+    ///         &mut *ptr
+    ///     };
+    ///     let offset = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN;
+    ///     ctx.load_bytes(offset, &mut buf.buf).map_err(|_| TC_ACT_PIPE)?;
+    ///
+    ///     // do something with `buf`
+    ///
+    ///     Ok(TC_ACT_PIPE)
+    /// }
+    ///
+    /// const ETH_HDR_LEN: usize = mem::size_of::<ethhdr>();
+    /// const IP_HDR_LEN: usize = mem::size_of::<iphdr>();
+    /// const TCP_HDR_LEN: usize = mem::size_of::<tcphdr>();
+    /// ```
+    #[inline(always)]
+    pub fn load_bytes(&self, offset: usize, dst: &mut [u8]) -> Result<(), c_long> {
+        if offset >= self.len() as usize {
+            return Err(-1);
+        }
+        if offset >= dst.len() {
+            return Err(-1);
+        }
+        let len = cmp::min(self.len() as isize - offset as isize, dst.len() as isize);
+        if len <= 0 {
+            return Err(-1);
+        }
+        if len > dst.len() as isize {
+            return Err(-1);
+        }
+        let ret = unsafe {
+            bpf_skb_load_bytes(
+                self.skb as *const _,
+                offset as u32,
+                dst.as_mut_ptr() as *mut _,
+                len as u32,
+            )
+        };
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(ret)
         }
     }
 
