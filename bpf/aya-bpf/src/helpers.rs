@@ -40,7 +40,7 @@ use crate::cty::{c_char, c_long, c_void};
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read(
@@ -77,7 +77,7 @@ pub unsafe fn bpf_probe_read<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read(
         dst.as_mut_ptr() as *mut c_void,
@@ -113,7 +113,7 @@ pub unsafe fn bpf_probe_read_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read_user(
@@ -148,7 +148,7 @@ pub unsafe fn bpf_probe_read_user<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read_user(
         dst.as_mut_ptr() as *mut c_void,
@@ -184,7 +184,7 @@ pub unsafe fn bpf_probe_read_user_buf(src: *const u8, dst: &mut [u8]) -> Result<
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read_kernel(
@@ -219,7 +219,7 @@ pub unsafe fn bpf_probe_read_kernel<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read_kernel(
         dst.as_mut_ptr() as *mut c_void,
@@ -262,7 +262,7 @@ pub unsafe fn bpf_probe_read_kernel_buf(src: *const u8, dst: &mut [u8]) -> Resul
 #[deprecated(
     note = "Use `bpf_probe_read_user_str_bytes` or `bpf_probe_read_kernel_str_bytes` instead"
 )]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -306,7 +306,7 @@ pub unsafe fn bpf_probe_read_str(src: *const u8, dest: &mut [u8]) -> Result<usiz
 ///
 /// On failure, this function returns Err(-1).
 #[deprecated(note = "Use `bpf_probe_read_user_str_bytes` instead")]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_user_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -409,7 +409,7 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 /// # Errors
 ///
 /// On failure, this function returns Err(-1).
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user_str_bytes(
     src: *const u8,
     dest: &mut [u8],
@@ -457,7 +457,7 @@ pub unsafe fn bpf_probe_read_user_str_bytes(
 ///
 /// On failure, this function returns Err(-1).
 #[deprecated(note = "Use bpf_probe_read_kernel_str_bytes instead")]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_kernel_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -561,7 +561,7 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 /// # Errors
 ///
 /// On failure, this function returns Err(-1).
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel_str_bytes(
     src: *const u8,
     dest: &mut [u8],
@@ -610,7 +610,7 @@ pub unsafe fn bpf_probe_read_kernel_str_bytes(
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
 #[allow(clippy::fn_to_numeric_cast_with_truncation)]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_write_user<T>(dst: *mut T, src: *const T) -> Result<(), c_long> {
     let ret = gen::bpf_probe_write_user(
         dst as *mut c_void,
@@ -640,7 +640,7 @@ pub unsafe fn bpf_probe_write_user<T>(dst: *mut T, src: *const T) -> Result<(), 
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_comm() -> Result<[c_char; 16], c_long> {
     let mut comm: [c_char; 16usize] = [0; 16];
     let ret = unsafe { gen::bpf_get_current_comm(&mut comm as *mut _ as *mut c_void, 16u32) };
@@ -674,7 +674,7 @@ pub fn bpf_get_current_comm() -> Result<[c_char; 16], c_long> {
 ///
 /// // Do something with pid and tgid
 /// ```
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_pid_tgid() -> u64 {
     unsafe { gen::bpf_get_current_pid_tgid() }
 }
@@ -697,7 +697,7 @@ pub fn bpf_get_current_pid_tgid() -> u64 {
 ///
 /// // Do something with uid and gid
 /// ```
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_uid_gid() -> u64 {
     unsafe { gen::bpf_get_current_uid_gid() }
 }
