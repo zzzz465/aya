@@ -40,7 +40,7 @@ use crate::cty::{c_char, c_long, c_void};
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read(
@@ -67,8 +67,9 @@ pub unsafe fn bpf_probe_read<T>(src: *const T) -> Result<T, c_long> {
 /// # use aya_bpf::{cty::{c_int, c_long}, helpers::bpf_probe_read_buf};
 /// # fn try_test() -> Result<(), c_long> {
 /// # let ptr: *const u8 = 0 as _;
-/// let mut buf = [0u8; 16];
-/// unsafe { bpf_probe_read_buf(ptr, &mut buf)? };
+/// const MAX_LEN: usize = 16;
+/// let mut buf = [0u8; MAX_LEN];
+/// unsafe { bpf_probe_read_buf(ptr, &mut buf, MAX_LEN)? };
 ///
 /// # Ok::<(), c_long>(())
 /// # }
@@ -77,11 +78,15 @@ pub unsafe fn bpf_probe_read<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
-pub unsafe fn bpf_probe_read_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
+#[inline(always)]
+pub unsafe fn bpf_probe_read_buf(
+    src: *const u8,
+    dst: &mut [u8],
+    max_len: usize,
+) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read(
         dst.as_mut_ptr() as *mut c_void,
-        dst.len() as u32,
+        max_len as u32,
         src as *const c_void,
     );
     if ret == 0 {
@@ -113,7 +118,7 @@ pub unsafe fn bpf_probe_read_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read_user(
@@ -138,8 +143,9 @@ pub unsafe fn bpf_probe_read_user<T>(src: *const T) -> Result<T, c_long> {
 /// # use aya_bpf::{cty::{c_int, c_long}, helpers::bpf_probe_read_user_buf};
 /// # fn try_test() -> Result<(), c_long> {
 /// # let user_ptr: *const u8 = 0 as _;
-/// let mut buf = [0u8; 16];
-/// unsafe { bpf_probe_read_user_buf(user_ptr, &mut buf)? };
+/// const MAX_LEN: usize = 16;
+/// let mut buf = [0u8; MAX_LEN];
+/// unsafe { bpf_probe_read_user_buf(user_ptr, &mut buf, MAX_LEN)? };
 ///
 /// # Ok::<(), c_long>(())
 /// # }
@@ -148,11 +154,15 @@ pub unsafe fn bpf_probe_read_user<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
-pub unsafe fn bpf_probe_read_user_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
+#[inline(always)]
+pub unsafe fn bpf_probe_read_user_buf(
+    src: *const u8,
+    dst: &mut [u8],
+    max_len: usize,
+) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read_user(
         dst.as_mut_ptr() as *mut c_void,
-        dst.len() as u32,
+        max_len as u32,
         src as *const c_void,
     );
     if ret == 0 {
@@ -184,7 +194,7 @@ pub unsafe fn bpf_probe_read_user_buf(src: *const u8, dst: &mut [u8]) -> Result<
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel<T>(src: *const T) -> Result<T, c_long> {
     let mut v: MaybeUninit<T> = MaybeUninit::uninit();
     let ret = gen::bpf_probe_read_kernel(
@@ -209,8 +219,9 @@ pub unsafe fn bpf_probe_read_kernel<T>(src: *const T) -> Result<T, c_long> {
 /// # use aya_bpf::{cty::{c_int, c_long}, helpers::bpf_probe_read_kernel_buf};
 /// # fn try_test() -> Result<(), c_long> {
 /// # let kernel_ptr: *const u8 = 0 as _;
-/// let mut buf = [0u8; 16];
-/// unsafe { bpf_probe_read_kernel_buf(kernel_ptr, &mut buf)? };
+/// const MAX_LEN: usize = 16;
+/// let mut buf = [0u8; MAX_LEN];
+/// unsafe { bpf_probe_read_kernel_buf(kernel_ptr, &mut buf, MAX_LEN)? };
 ///
 /// # Ok::<(), c_long>(())
 /// # }
@@ -219,11 +230,15 @@ pub unsafe fn bpf_probe_read_kernel<T>(src: *const T) -> Result<T, c_long> {
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
-pub unsafe fn bpf_probe_read_kernel_buf(src: *const u8, dst: &mut [u8]) -> Result<(), c_long> {
+#[inline(always)]
+pub unsafe fn bpf_probe_read_kernel_buf(
+    src: *const u8,
+    dst: &mut [u8],
+    max_len: usize,
+) -> Result<(), c_long> {
     let ret = gen::bpf_probe_read_kernel(
         dst.as_mut_ptr() as *mut c_void,
-        dst.len() as u32,
+        max_len as u32,
         src as *const c_void,
     );
     if ret == 0 {
@@ -262,7 +277,7 @@ pub unsafe fn bpf_probe_read_kernel_buf(src: *const u8, dst: &mut [u8]) -> Resul
 #[deprecated(
     note = "Use `bpf_probe_read_user_str_bytes` or `bpf_probe_read_kernel_str_bytes` instead"
 )]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -306,7 +321,7 @@ pub unsafe fn bpf_probe_read_str(src: *const u8, dest: &mut [u8]) -> Result<usiz
 ///
 /// On failure, this function returns Err(-1).
 #[deprecated(note = "Use `bpf_probe_read_user_str_bytes` instead")]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_user_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -343,8 +358,9 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_user_str_bytes};
 /// # fn try_test() -> Result<(), c_long> {
 /// # let user_ptr: *const u8 = 0 as _;
-/// let mut buf = [0u8; 16];
-/// let my_str_bytes = unsafe { bpf_probe_read_user_str_bytes(user_ptr, &mut buf)? };
+/// const MAX_LEN: usize = 16;
+/// let mut buf = [0u8; MAX_LEN];
+/// let my_str_bytes = unsafe { bpf_probe_read_user_str_bytes(user_ptr, &mut buf, MAX_LEN)? };
 ///
 /// // Do something with my_str_bytes
 /// # Ok::<(), c_long>(())
@@ -357,9 +373,11 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_user_str_bytes};
 /// use aya_bpf::{macros::map, maps::PerCpuArray};
 ///
+/// const MAX_LEN: usize = 4096;
+///
 /// #[repr(C)]
 /// pub struct Buf {
-///     pub buf: [u8; 4096],
+///     pub buf: [u8; MAX_LEN],
 /// }
 ///
 /// #[map]
@@ -371,7 +389,7 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 ///     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
 ///     &mut *ptr
 /// };
-/// let my_str_bytes = unsafe { bpf_probe_read_user_str_bytes(user_ptr, &mut buf.buf)? };
+/// let my_str_bytes = unsafe { bpf_probe_read_user_str_bytes(user_ptr, &mut buf.buf, MAX_LEN)? };
 ///
 /// // Do something with my_str_bytes
 /// # Ok::<(), c_long>(())
@@ -385,20 +403,25 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 /// # #![allow(dead_code)]
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_user_str_bytes};
 /// # use aya_bpf::{macros::map, maps::PerCpuArray};
-/// # #[repr(C)]
-/// # pub struct Buf {
-/// #     pub buf: [u8; 4096],
-/// # }
-/// # #[map]
-/// # pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+///
+/// const MAX_LEN: usize = 4096;
+///
+/// #[repr(C)]
+/// pub struct Buf {
+///     pub buf: [u8; MAX_LEN],
+/// }
+///
+/// #[map]
+/// pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+///
 /// # fn try_test() -> Result<(), c_long> {
 /// # let user_ptr: *const u8 = 0 as _;
-/// # let buf = unsafe {
-/// #     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
-/// #     &mut *ptr
-/// # };
+/// let buf = unsafe {
+///     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
+///     &mut *ptr
+/// };
 /// let my_str = unsafe {
-///     core::str::from_utf8_unchecked(bpf_probe_read_user_str_bytes(user_ptr, &mut buf.buf)?)
+///     core::str::from_utf8_unchecked(bpf_probe_read_user_str_bytes(user_ptr, &mut buf.buf, MAX_LEN)?)
 /// };
 ///
 /// // Do something with my_str
@@ -409,14 +432,15 @@ pub unsafe fn bpf_probe_read_user_str(src: *const u8, dest: &mut [u8]) -> Result
 /// # Errors
 ///
 /// On failure, this function returns Err(-1).
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_user_str_bytes(
     src: *const u8,
     dest: &mut [u8],
+    max_len: usize,
 ) -> Result<&[u8], c_long> {
     let len = gen::bpf_probe_read_user_str(
         dest.as_mut_ptr() as *mut c_void,
-        dest.len() as u32,
+        max_len as u32,
         src as *const c_void,
     );
     if len < 0 {
@@ -457,7 +481,7 @@ pub unsafe fn bpf_probe_read_user_str_bytes(
 ///
 /// On failure, this function returns Err(-1).
 #[deprecated(note = "Use bpf_probe_read_kernel_str_bytes instead")]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Result<usize, c_long> {
     let len = gen::bpf_probe_read_kernel_str(
         dest.as_mut_ptr() as *mut c_void,
@@ -494,8 +518,9 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_kernel_str_bytes};
 /// # fn try_test() -> Result<(), c_long> {
 /// # let kernel_ptr: *const u8 = 0 as _;
-/// let mut buf = [0u8; 16];
-/// let my_str_bytes = unsafe { bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf)? };
+/// const MAX_LEN: usize = 16;
+/// let mut buf = [0u8; MAX_LEN];
+/// let my_str_bytes = unsafe { bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf, MAX_LEN)? };
 ///
 /// // Do something with my_str_bytes
 /// # Ok::<(), c_long>(())
@@ -509,9 +534,11 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_kernel_str_bytes};
 /// use aya_bpf::{macros::map, maps::PerCpuArray};
 ///
+/// const MAX_LEN: usize = 4096;
+///
 /// #[repr(C)]
 /// pub struct Buf {
-///     pub buf: [u8; 4096],
+///     pub buf: [u8; MAX_LEN],
 /// }
 ///
 /// #[map]
@@ -523,7 +550,7 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 ///     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
 ///     &mut *ptr
 /// };
-/// let my_str_bytes = unsafe { bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf.buf)? };
+/// let my_str_bytes = unsafe { bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf.buf, MAX_LEN)? };
 ///
 /// // Do something with my_str_bytes
 /// # Ok::<(), c_long>(())
@@ -537,20 +564,25 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 /// # #![allow(dead_code)]
 /// # use aya_bpf::{cty::c_long, helpers::bpf_probe_read_kernel_str_bytes};
 /// # use aya_bpf::{macros::map, maps::PerCpuArray};
-/// # #[repr(C)]
-/// # pub struct Buf {
-/// #     pub buf: [u8; 4096],
-/// # }
-/// # #[map]
-/// # pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+///
+/// const MAX_LEN: usize = 4096;
+///
+/// #[repr(C)]
+/// pub struct Buf {
+///     pub buf: [u8; MAX_LEN],
+/// }
+///
+/// #[map]
+/// pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+///
 /// # fn try_test() -> Result<(), c_long> {
 /// # let kernel_ptr: *const u8 = 0 as _;
-/// # let buf = unsafe {
-/// #     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
-/// #     &mut *ptr
-/// # };
+/// let buf = unsafe {
+///     let ptr = BUF.get_ptr_mut(0).ok_or(0)?;
+///     &mut *ptr
+/// };
 /// let my_str = unsafe {
-///     core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf.buf)?)
+///     core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(kernel_ptr, &mut buf.buf, MAX_LEN)?)
 /// };
 ///
 /// // Do something with my_str
@@ -561,14 +593,15 @@ pub unsafe fn bpf_probe_read_kernel_str(src: *const u8, dest: &mut [u8]) -> Resu
 /// # Errors
 ///
 /// On failure, this function returns Err(-1).
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_read_kernel_str_bytes(
     src: *const u8,
     dest: &mut [u8],
+    max_len: usize,
 ) -> Result<&[u8], c_long> {
     let len = gen::bpf_probe_read_kernel_str(
         dest.as_mut_ptr() as *mut c_void,
-        dest.len() as u32,
+        max_len as u32,
         src as *const c_void,
     );
     if len < 0 {
@@ -610,7 +643,7 @@ pub unsafe fn bpf_probe_read_kernel_str_bytes(
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
 #[allow(clippy::fn_to_numeric_cast_with_truncation)]
-#[inline]
+#[inline(always)]
 pub unsafe fn bpf_probe_write_user<T>(dst: *mut T, src: *const T) -> Result<(), c_long> {
     let ret = gen::bpf_probe_write_user(
         dst as *mut c_void,
@@ -640,7 +673,7 @@ pub unsafe fn bpf_probe_write_user<T>(dst: *mut T, src: *const T) -> Result<(), 
 /// # Errors
 ///
 /// On failure, this function returns a negative value wrapped in an `Err`.
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_comm() -> Result<[c_char; 16], c_long> {
     let mut comm: [c_char; 16usize] = [0; 16];
     let ret = unsafe { gen::bpf_get_current_comm(&mut comm as *mut _ as *mut c_void, 16u32) };
@@ -674,7 +707,7 @@ pub fn bpf_get_current_comm() -> Result<[c_char; 16], c_long> {
 ///
 /// // Do something with pid and tgid
 /// ```
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_pid_tgid() -> u64 {
     unsafe { gen::bpf_get_current_pid_tgid() }
 }
@@ -697,7 +730,7 @@ pub fn bpf_get_current_pid_tgid() -> u64 {
 ///
 /// // Do something with uid and gid
 /// ```
-#[inline]
+#[inline(always)]
 pub fn bpf_get_current_uid_gid() -> u64 {
     unsafe { gen::bpf_get_current_uid_gid() }
 }
