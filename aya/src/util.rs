@@ -157,7 +157,7 @@ pub(crate) unsafe fn bytes_of<T>(val: &T) -> &[u8] {
 }
 
 const MIN_LOG_BUF_SIZE: usize = 1024 * 10;
-const MAX_LOG_BUF_SIZE: usize = (std::u32::MAX >> 8) as usize;
+const MAX_LOG_BUF_SIZE: usize = std::u32::MAX as usize;
 
 pub(crate) struct VerifierLog {
     buf: Vec<u8>,

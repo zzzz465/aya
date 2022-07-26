@@ -533,7 +533,7 @@ fn load_program<T: Link>(
         line_info_rec_size: *line_info_rec_size,
         line_info: line_info.clone(),
     };
-    let ret = retry_with_verifier_logs(10, &mut logger, |logger| bpf_load_program(&attr, logger));
+    let ret = retry_with_verifier_logs(50, &mut logger, |logger| bpf_load_program(&attr, logger));
 
     match ret {
         Ok(prog_fd) => {
