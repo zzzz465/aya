@@ -49,12 +49,18 @@
 //! [Log]: https://docs.rs/log/0.4.14/log/trait.Log.html
 //! [log]: https://docs.rs/log
 //!
-use std::{convert::TryInto, io, mem, ptr, str, sync::Arc};
+use std::{
+    convert::TryInto,
+    fmt::{LowerHex, UpperHex},
+    io, mem,
+    net::{Ipv4Addr, Ipv6Addr},
+    ptr, slice, str,
+    sync::Arc,
+};
 
-use aya_log_common::{ArgType, RecordField, LOG_BUF_CAPACITY, LOG_FIELDS};
+use aya_log_common::{Argument, DisplayHint, RecordField, LOG_BUF_CAPACITY, LOG_FIELDS};
 use bytes::BytesMut;
-use dyn_fmt::AsStrFormatExt;
-use log::{error, Level, Log, Record};
+use log::{debug, error, Level, Log, Record};
 use thiserror::Error;
 
 use aya::{
@@ -112,6 +118,151 @@ impl BpfLogger {
     }
 }
 
+pub trait Formatter<T> {
+    fn format(v: T) -> String;
+}
+
+pub struct DefaultFormatter;
+impl<T> Formatter<T> for DefaultFormatter
+where
+    T: ToString,
+{
+    fn format(v: T) -> String {
+        v.to_string()
+    }
+}
+
+pub struct LowerHexFormatter;
+impl<T> Formatter<T> for LowerHexFormatter
+where
+    T: LowerHex,
+{
+    fn format(v: T) -> String {
+        format!("{:x}", v)
+    }
+}
+
+pub struct UpperHexFormatter;
+impl<T> Formatter<T> for UpperHexFormatter
+where
+    T: UpperHex,
+{
+    fn format(v: T) -> String {
+        format!("{:X}", v)
+    }
+}
+
+pub struct Ipv4Formatter;
+impl<T> Formatter<T> for Ipv4Formatter
+where
+    Ipv4Addr: From<T>,
+{
+    fn format(v: T) -> String {
+        Ipv4Addr::from(v).to_string()
+    }
+}
+
+pub struct Ipv6Formatter;
+impl<T> Formatter<T> for Ipv6Formatter
+where
+    Ipv6Addr: From<T>,
+{
+    fn format(v: T) -> String {
+        Ipv6Addr::from(v).to_string()
+    }
+}
+
+trait Format {
+    fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()>;
+}
+
+impl Format for u32 {
+    fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()> {
+        match last_hint {
+            Some(DisplayHint::Default) => Ok(DefaultFormatter::format(self)),
+            Some(DisplayHint::LowerHex) => Ok(LowerHexFormatter::format(self)),
+            Some(DisplayHint::UpperHex) => Ok(UpperHexFormatter::format(self)),
+            Some(DisplayHint::IPv4) => Ok(Ipv4Formatter::format(*self)),
+            Some(DisplayHint::IPv6) => Err(()),
+            _ => Ok(DefaultFormatter::format(self)),
+        }
+    }
+}
+
+impl Format for [u8; 16] {
+    fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()> {
+        match last_hint {
+            Some(DisplayHint::Default) => Err(()),
+            Some(DisplayHint::LowerHex) => Err(()),
+            Some(DisplayHint::UpperHex) => Err(()),
+            Some(DisplayHint::IPv4) => Err(()),
+            Some(DisplayHint::IPv6) => Ok(Ipv6Formatter::format(*self)),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Format for [u16; 8] {
+    fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()> {
+        match last_hint {
+            Some(DisplayHint::Default) => Err(()),
+            Some(DisplayHint::LowerHex) => Err(()),
+            Some(DisplayHint::UpperHex) => Err(()),
+            Some(DisplayHint::IPv4) => Err(()),
+            Some(DisplayHint::IPv6) => Ok(Ipv6Formatter::format(*self)),
+            _ => Err(()),
+        }
+    }
+}
+
+macro_rules! impl_format {
+    ($type:ident) => {
+        impl Format for $type {
+            fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()> {
+                match last_hint {
+                    Some(DisplayHint::Default) => Ok(DefaultFormatter::format(self)),
+                    Some(DisplayHint::LowerHex) => Ok(LowerHexFormatter::format(self)),
+                    Some(DisplayHint::UpperHex) => Ok(UpperHexFormatter::format(self)),
+                    Some(DisplayHint::IPv4) => Err(()),
+                    Some(DisplayHint::IPv6) => Err(()),
+                    _ => Ok(DefaultFormatter::format(self)),
+                }
+            }
+        }
+    };
+}
+
+impl_format!(i8);
+impl_format!(i16);
+impl_format!(i32);
+impl_format!(i64);
+impl_format!(isize);
+
+impl_format!(u8);
+impl_format!(u16);
+impl_format!(u64);
+impl_format!(usize);
+
+macro_rules! impl_format_float {
+    ($type:ident) => {
+        impl Format for $type {
+            fn format(&self, last_hint: Option<DisplayHint>) -> Result<String, ()> {
+                match last_hint {
+                    Some(DisplayHint::Default) => Ok(DefaultFormatter::format(self)),
+                    Some(DisplayHint::LowerHex) => Err(()),
+                    Some(DisplayHint::UpperHex) => Err(()),
+                    Some(DisplayHint::IPv4) => Err(()),
+                    Some(DisplayHint::IPv6) => Err(()),
+                    _ => Ok(DefaultFormatter::format(self)),
+                }
+            }
+        }
+    };
+}
+
+impl_format_float!(f32);
+impl_format_float!(f64);
+
 #[derive(Copy, Clone, Debug)]
 struct DefaultLogger;
 
@@ -147,8 +298,9 @@ fn log_buf(mut buf: &[u8], logger: &dyn Log) -> Result<(), ()> {
     let mut module = None;
     let mut file = None;
     let mut line = None;
-    let mut log = None;
     let mut num_args = None;
+
+    debug!("log_buf start");
 
     for _ in 0..LOG_FIELDS {
         let (attr, rest) = unsafe { TagLenValue::<'_, RecordField>::try_read(buf)? };
@@ -172,97 +324,119 @@ fn log_buf(mut buf: &[u8], logger: &dyn Log) -> Result<(), ()> {
             RecordField::NumArgs => {
                 num_args = Some(usize::from_ne_bytes(attr.value.try_into().map_err(|_| ())?));
             }
-            RecordField::Log => {
-                log = Some(std::str::from_utf8(attr.value).map_err(|_| ())?);
-            }
         }
 
         buf = rest;
     }
 
-    let log_msg = log.ok_or(())?;
-    let full_log_msg = match num_args {
-        Some(n) => {
-            let mut args: Vec<String> = Vec::new();
-            for _ in 0..n {
-                let (attr, rest) = unsafe { TagLenValue::<'_, ArgType>::try_read(buf)? };
+    debug!("log_buf parsed record fields");
 
-                match attr.tag {
-                    ArgType::I8 => {
-                        args.push(
-                            i8::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::I16 => {
-                        args.push(
-                            i16::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::I32 => {
-                        args.push(
-                            i32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::I64 => {
-                        args.push(
-                            i64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::Isize => {
-                        args.push(
-                            isize::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
-                                .to_string(),
-                        );
-                    }
-                    ArgType::U8 => {
-                        args.push(
-                            u8::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::U16 => {
-                        args.push(
-                            u16::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::U32 => {
-                        args.push(
-                            u32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::U64 => {
-                        args.push(
-                            u64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::Usize => {
-                        args.push(
-                            usize::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
-                                .to_string(),
-                        );
-                    }
-                    ArgType::F32 => {
-                        args.push(
-                            f32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::F64 => {
-                        args.push(
-                            f64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).to_string(),
-                        );
-                    }
-                    ArgType::Str => match str::from_utf8(attr.value) {
-                        Ok(v) => args.push(v.to_string()),
-                        Err(e) => error!("received invalid utf8 string: {}", e),
-                    },
-                }
+    let mut full_log_msg = String::new();
+    let mut last_hint: Option<DisplayHint> = None;
+    for _ in 0..num_args.ok_or(())? {
+        let (attr, rest) = unsafe { TagLenValue::<'_, Argument>::try_read(buf)? };
 
-                buf = rest;
+        match attr.tag {
+            Argument::DisplayHint => {
+                last_hint = Some(unsafe { ptr::read_unaligned(attr.value.as_ptr() as *const _) });
             }
-
-            log_msg.format(&args)
+            Argument::I8 => {
+                full_log_msg.push_str(
+                    &i8::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).format(last_hint)?,
+                );
+                last_hint = None;
+            }
+            Argument::I16 => {
+                full_log_msg.push_str(
+                    &i16::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+                last_hint = None;
+            }
+            Argument::I32 => {
+                full_log_msg.push_str(
+                    &i32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+                last_hint = None;
+            }
+            Argument::I64 => {
+                full_log_msg.push_str(
+                    &i64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+                last_hint = None;
+            }
+            Argument::Isize => {
+                full_log_msg.push_str(
+                    &isize::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+                last_hint = None;
+            }
+            Argument::U8 => {
+                full_log_msg.push_str(
+                    &u8::from_ne_bytes(attr.value.try_into().map_err(|_| ())?).format(last_hint)?,
+                );
+            }
+            Argument::U16 => {
+                full_log_msg.push_str(
+                    &u16::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::U32 => {
+                full_log_msg.push_str(
+                    &u32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::U64 => {
+                full_log_msg.push_str(
+                    &u64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::Usize => {
+                full_log_msg.push_str(
+                    &usize::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::F32 => {
+                full_log_msg.push_str(
+                    &f32::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::F64 => {
+                full_log_msg.push_str(
+                    &f64::from_ne_bytes(attr.value.try_into().map_err(|_| ())?)
+                        .format(last_hint)?,
+                );
+            }
+            Argument::ArrU8Len16 => {
+                let value: [u8; 16] = attr.value.try_into().map_err(|_| ())?;
+                full_log_msg.push_str(&value.format(last_hint)?);
+            }
+            Argument::ArrU16Len8 => {
+                let len = attr.value.len() / 2;
+                let ptr = attr.value.as_ptr().cast::<u16>();
+                let slice = unsafe { slice::from_raw_parts(ptr, len) };
+                let mut value: [u16; 8] = Default::default();
+                value.copy_from_slice(slice);
+                full_log_msg.push_str(&value.format(last_hint)?);
+            }
+            Argument::Str => match str::from_utf8(attr.value) {
+                Ok(v) => full_log_msg.push_str(v),
+                Err(e) => error!("received invalid utf8 string: {}", e),
+            },
         }
-        None => log_msg.to_string(),
-    };
+
+        buf = rest;
+    }
+
+    debug!("log_buf parsed args");
 
     logger.log(
         &Record::builder()
@@ -312,13 +486,13 @@ impl<'a, T: Pod> TagLenValue<'a, T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use aya_log_common::{write_record_header, write_record_message, WriteToBuf};
+    use aya_log_common::{write_record_header, WriteToBuf};
     use log::logger;
     use testing_logger;
 
-    fn new_log(msg: &str, args: usize) -> Result<(usize, Vec<u8>), ()> {
+    fn new_log(args: usize) -> Result<(usize, Vec<u8>), ()> {
         let mut buf = vec![0; 8192];
-        let mut len = write_record_header(
+        let len = write_record_header(
             &mut buf,
             "test",
             aya_log_common::Level::Info,
@@ -327,14 +501,18 @@ mod test {
             123,
             args,
         )?;
-        len += write_record_message(&mut buf[len..], msg)?;
         Ok((len, buf))
     }
 
     #[test]
     fn test_str() {
         testing_logger::setup();
-        let (_, input) = new_log("test", 0).unwrap();
+        let (len, mut input) = new_log(1).unwrap();
+
+        "test"
+            .write(&mut input[len..])
+            .expect("could not write to the buffer");
+
         let logger = logger();
         let _ = log_buf(&input, logger);
         testing_logger::validate(|captured_logs| {
@@ -347,14 +525,136 @@ mod test {
     #[test]
     fn test_str_with_args() {
         testing_logger::setup();
-        let (len, mut input) = new_log("hello {}", 1).unwrap();
-        let name = "test";
-        (*name).write(&mut input[len..]).unwrap();
+        let (mut len, mut input) = new_log(2).unwrap();
+
+        len += "hello "
+            .write(&mut input[len..])
+            .expect("could not write to the buffer");
+        "test".write(&mut input[len..]).unwrap();
+
         let logger = logger();
         let _ = log_buf(&input, logger);
         testing_logger::validate(|captured_logs| {
             assert_eq!(captured_logs.len(), 1);
             assert_eq!(captured_logs[0].body, "hello test");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_default() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "default hint: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::Default.write(&mut input[len..]).unwrap();
+        14.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "default hint: 14");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_lower_hex() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "lower hex: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::LowerHex.write(&mut input[len..]).unwrap();
+        200.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "lower hex: c8");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_upper_hex() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "upper hex: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::UpperHex.write(&mut input[len..]).unwrap();
+        200.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "upper hex: C8");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_ipv4() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "ipv4: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::IPv4.write(&mut input[len..]).unwrap();
+        // 10.0.0.1 as u32
+        167772161u32.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "ipv4: 10.0.0.1");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_ipv6_arr_u8_len_16() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "ipv6: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::IPv6.write(&mut input[len..]).unwrap();
+        // 2001:db8::1:1 as byte array
+        let ipv6_arr: [u8; 16] = [
+            0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x01,
+        ];
+        ipv6_arr.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "ipv6: 2001:db8::1:1");
+            assert_eq!(captured_logs[0].level, Level::Info);
+        });
+    }
+
+    #[test]
+    fn test_display_hint_ipv6_arr_u16_len_8() {
+        testing_logger::setup();
+        let (mut len, mut input) = new_log(3).unwrap();
+
+        len += "ipv6: ".write(&mut input[len..]).unwrap();
+        len += DisplayHint::IPv6.write(&mut input[len..]).unwrap();
+        // 2001:db8::1:1 as u16 array
+        let ipv6_arr: [u16; 8] = [
+            0x2001, 0x0db8, 0x0000, 0x0000, 0x0000, 0x0000, 0x0001, 0x0001,
+        ];
+        ipv6_arr.write(&mut input[len..]).unwrap();
+
+        let logger = logger();
+        let _ = log_buf(&input, logger);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].body, "ipv6: 2001:db8::1:1");
             assert_eq!(captured_logs[0].level, Level::Info);
         });
     }
