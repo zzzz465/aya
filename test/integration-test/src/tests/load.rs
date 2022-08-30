@@ -99,3 +99,14 @@ fn unload() -> anyhow::Result<()> {
     assert_loaded(false);
     Ok(())
 }
+
+#[integration_test]
+fn log() -> anyhow::Result<()> {
+    let bytes = include_bytes_aligned!("../../../../target/bpfel-unknown-none/debug/log_test");
+    let mut bpf = Bpf::load(bytes)?;
+    let prog: &mut Xdp = bpf.program_mut("log").unwrap().try_into().unwrap();
+    prog.load().unwrap();
+    prog.attach("lo", XdpFlags::default()).unwrap();
+
+    Ok(())
+}
